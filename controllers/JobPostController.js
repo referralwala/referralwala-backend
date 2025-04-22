@@ -2,6 +2,7 @@ const JobPost = require('../models/JobPost');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
 const ApplicantStatus = require('../models/ApplicantStatus');
+const UniqueJob = require('../models/UniqueJob');
 const mongoose = require('mongoose');
 const nodemailer = require('nodemailer');
 const fs = require('fs');
@@ -66,7 +67,7 @@ exports.createJobPost = async (req, res) => {
     });
 
     if (duplicateJob) {
-      return res.status(400).json({ message: 'You have already posted this job.' });
+      return res.status(400).json({ message: 'You have already posted this job with same Job ID.' });
     }
 
     // Create a new job post
@@ -94,6 +95,56 @@ exports.createJobPost = async (req, res) => {
     //To increatment the total job count 
     user.totalJobCount += 1;
     await user.save();
+
+    // Check if a UniqueJob already exists
+    const existingUniqueJob = await UniqueJob.findOne({
+      jobUniqueId,
+      companyName
+    });
+    
+
+if (!existingUniqueJob) {
+  // Create a new UniqueJob if not exists
+  const uniqueJob = new UniqueJob({
+    jobUniqueId,
+    latestJobPost: newJobPost._id,
+    jobRole,
+    companyName,
+    companyLogoUrl,
+    jobDescription,
+    experienceRequired,
+    location,
+    workMode,
+    employmentType,
+    ctc,
+    jobLink,
+    endDate,
+  });
+
+  await uniqueJob.save();
+} else {
+  // Compare endDate — update only if the new post has a later endDate
+  const isNewer =
+    !existingUniqueJob.endDate || !endDate || new Date(endDate) > existingUniqueJob.endDate;
+
+  if (isNewer) {
+    existingUniqueJob.latestJobPost = newJobPost._id;
+    existingUniqueJob.jobRole = jobRole;
+    existingUniqueJob.companyName = companyName;
+    existingUniqueJob.companyLogoUrl = companyLogoUrl;
+    existingUniqueJob.jobDescription = jobDescription;
+    existingUniqueJob.experienceRequired = experienceRequired;
+    existingUniqueJob.location = location;
+    existingUniqueJob.workMode = workMode;
+    existingUniqueJob.employmentType = employmentType;
+    existingUniqueJob.ctc = ctc;
+    existingUniqueJob.jobLink = jobLink;
+    existingUniqueJob.endDate = endDate;
+
+    await existingUniqueJob.save();
+  }
+}
+
 
     // Populate followers of the user who created the job post
     const populatedUser = await User.findById(userId).populate('followers');
@@ -199,7 +250,7 @@ exports.getAllJobPosts = async (req, res) => {
 
     // Retrieve filtered and paginated job posts
     const jobPosts = await JobPost.find(filterConditions)
-      .populate('user', 'firstName lastName email')
+      // .populate('user', 'firstName lastName email')
       .sort({ createdAt: -1 }) // Sort by newest first
       .skip(skip)
       .limit(limit);
@@ -249,7 +300,7 @@ exports.getJobPostsByUser = async (req, res) => {
 exports.getJobPostById = async (req, res) => {
   try {
     const { id } = req.params;
-    const jobPost = await JobPost.findById(id).populate('user', 'firstName lastName email followers');
+    const jobPost = await JobPost.findById(id).populate('user', 'firstName lastName');
 
     if (!jobPost) {
       return res.status(404).json({ message: 'Job post not found' });
@@ -396,7 +447,7 @@ exports.getApplicantsForJobPost = async (req, res) => {
 
     // Fetch applicants and their statuses
     const applicants = await ApplicantStatus.find({ jobPostId: jobPost._id })
-      .populate('userId', 'firstName lastName email profilePhoto'); // Populate user details
+      .populate('userId', 'firstName lastName email profilePhoto atsScore'); // Populate user details
 
     // Return applicants along with their status
     res.status(200).json(applicants);
@@ -647,16 +698,22 @@ exports.updateApplicantStatus = async (req, res) => {
     }
 
     // Update the status
-    applicantStatus.status = status;
-    applicantStatus.employer_doc = uploadedFileUrl;
-    await applicantStatus.save();
+ // Update the status and employer document
+applicantStatus.status = status;
+if (uploadedFileUrl) {
+  applicantStatus.employer_doc = uploadedFileUrl;
+}
+await applicantStatus.save();
 
-    if (uploadedFileUrl) {
-      // Find the user and increment the hiresCount by 1
-      await User.findByIdAndUpdate(applicantId, {
-        $inc: { getreferral: 1 } // Increment the hiresCount field by 1
-      });
-    }
+// Check if both docs exist, and autoConfirm is false
+if (applicantStatus.employer_doc && applicantStatus.employee_doc && !applicantStatus.autoConfirmed) {
+  await User.findByIdAndUpdate(applicantId, { $inc: { getreferral: 1 } });
+  await User.findByIdAndUpdate(jobPost.user, { $inc: { givereferral: 1 } });
+
+  applicantStatus.autoConfirmed = true;
+  await applicantStatus.save();
+}
+
 
     // Optionally, create a notification about the status change
     const user = await User.findById(applicantId);
@@ -722,10 +779,13 @@ exports.updateEmployeeDocument = async (req, res) => {
     const jobPosterUserId = job.user; // Assuming the job model has a field 'userId' referring to the poster's user jobPostId
 
     // Increment the referralsCount of the job poster by 1
-    await User.findByIdAndUpdate(jobPosterUserId, {
-      $inc: { givereferral: 1 } // Increment the givereferral by 1
-    }, { new: true }); // The 'new' option returns the updated document
-
+    if (applicantStatus.employer_doc && applicantStatus.employee_doc && !applicantStatus.autoConfirmed) {
+      await User.findByIdAndUpdate(userId, { $inc: { getreferral: 1 } });
+      await User.findByIdAndUpdate(job.user, { $inc: { givereferral: 1 } });
+    
+      applicantStatus.autoConfirmed = true;
+      await applicantStatus.save();
+    }
     res.status(200).json({ message: "Document updated successfully", documentUrl });
   } catch (error) {
     console.error("Error updating document:", error);

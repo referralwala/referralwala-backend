@@ -183,6 +183,9 @@ const userSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  atsScore: {
+    type: Number,
+  },
   // New fields for followers and following
   followers: [{
     type: mongoose.Schema.Types.ObjectId,
