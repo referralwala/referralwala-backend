@@ -186,14 +186,15 @@ const userSchema = new mongoose.Schema({
   atsScore: {
     type: Number,
   },
-  // New fields for followers and following
+  userRole: { type: Number, default: 0 },// 0 = normal user, 1 = admin
+ 
   followers: [{
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User', // Reference to the User model for followers
+    ref: 'User', 
   }],
   following: [{
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User', // Reference to the User model for following
+    ref: 'User', 
   }],
   appliedJobs: [
     {
@@ -220,6 +221,14 @@ const userSchema = new mongoose.Schema({
   totalJobCount:{
     type: Number,
     default: 0
+  },
+  resumeReviewRating: {
+    type: Number,
+    default: 0, // average rating
+  },
+  resumeReviewCount: {
+    type: Number,
+    default: 0, // how many reviews received
   },
   preferredSectors: [
     {

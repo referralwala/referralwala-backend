@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      background-color: #f9f9f9;
+      padding: 20px;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    .header {
+      text-align: center;
+      background: #2563eb;
+      padding: 10px;
+      border-radius: 10px 10px 0 0;
+      color: #fff;
+    }
+    .content {
+      margin: 20px 0;
+    }
+    .footer {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 12px;
+      color: #888;
+    }
+    .button {
+      display: inline-block;
+      background-color: #2563eb;
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 5px;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>New Resume Review Request</h1>
+    </div>
+    <div class="content">
+      <p>Dear {{referrerName}},</p>
+      <p>You have a new resume review request. The applicant has submitted the following question:</p>
+      <blockquote>
+        <p><strong>Applicant Question:</strong> "{{applicantQuestion}}"</p>
+      </blockquote>
+      <p>Please review the applicant's resume and provide your feedback at the earliest.</p>
+
+      <!-- <p>To view the request and submit your feedback, click the link below:</p>
+      <p><a href="https://referralwala.com/review-request/{{requestId}}" class="button">View Review Request</a></p> -->
+    </div>
+    <div class="footer">
+      <p>&copy; 2025 Referralwala. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>

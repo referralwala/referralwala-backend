@@ -1,5 +1,8 @@
 const express = require('express');
 const dotenv = require('dotenv');
+const http = require('http');
+const socketIo = require('socket.io');
+const socketHandler = require('./socket/chatHandler');
 const cors = require('cors');
 const passport = require('passport');
 const cron = require('node-cron');
@@ -16,15 +19,34 @@ const rapidInternshipRoutes = require('./routes/rapidInternshipRoutes');
 const autoConfirmReferrals = require('./cron/autoConfirm');
 const refreshRapidJobs = require('./cron/refreshRapidJobs');
 const refreshRapidInternships = require('./cron/refreshRapidInternships')
+const resumeReviewRoutes = require('./routes/resumeReviewRoutes');
+const chatMessagesRoutes = require('./routes/chatMessagesRoutes');
+const updateExpiredReviewRequests = require('./cron/autoExpireReviewRequest');
+
+// Admin Routes
+const userDataRoutes = require('./adminRoutes/userDataRoutes')
+const adminJobRoutes = require('./adminRoutes/adminJobRoutes');
+const adminAuthRoutes = require('./adminRoutes/adminAuthRoutes');
+
 
 dotenv.config();
 require('./config/passport');
 
 
 const app = express();
+const server = http.createServer(app);
 app.use(cors({
-  origin: ['http://localhost:3000', 'https://referralwala-deployment-frontend.vercel.app', 'https://referralwala.com','http://3.109.97.10' ]
+  origin: ['http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:5500', 'https://www.referralwala.com', 'https://referralwala.com','http://3.109.97.10' ]
 }));
+const io = socketIo(server, {
+  cors: {
+    origin: ['http://localhost:3000',  'http://localhost:3001', 'http://127.0.0.1:5500', 'https://www.referralwala.com', 'https://referralwala.com','http://3.109.97.10']
+  }
+});
+socketHandler(io);
+io.on('connection', (socket) => {
+  console.log('🟢 Socket connected:', socket.id);
+});
 
 app.use(express.json({ limit: '10mb' }));
 
@@ -47,11 +69,13 @@ cron.schedule('0 0 * * *', async () => {
 
 // Auto-confirm referrals after 3 days if only one side uploaded a document
 cron.schedule('0 0 * * *', autoConfirmReferrals);
-// 🕑 Run every 3 days at 2 AM
-cron.schedule('0 2 */3 * *', refreshRapidJobs);
-// 🕓 Every 3 days at 3 AM 
-cron.schedule('0 3 */3 * *', refreshRapidInternships);
+// 🕑 Run every 5 days at 2 AM
+cron.schedule('0 2 */5 * *', refreshRapidJobs);
+// 🕓 Run every 5 days at 3 AM
+cron.schedule('0 3 */5 * *', refreshRapidInternships);
 
+//Runs everyday at midnight
+cron.schedule('0 0 * * *', updateExpiredReviewRequests);
 
 app.get('/', (req, res) => {
     res.send('Server Running Successfully');
@@ -64,7 +88,15 @@ app.use('/job-reports', jobReportRoutes);
 app.use('/locationlist',locationRoutes)
 app.use('/rapidjob', rapidJobRoutes);
 app.use('/rapidinternship',rapidInternshipRoutes);
+app.use('/review', resumeReviewRoutes);
+app.use('/chat',chatMessagesRoutes);
+
+//Admin 
+app.use('/adminuser', userDataRoutes);
+app.use('/adminjob', adminJobRoutes);
+app.use('/adminauth', adminAuthRoutes);
+
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));

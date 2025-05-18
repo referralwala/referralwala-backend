@@ -17,7 +17,7 @@ const {
   addJobToWishlist, removeJobFromWishlist, getWishlistJobs
 } = require('../controllers/JobPostController');
 
-const jwtMiddleware = require('../middleware/jwtMiddleware'); 
+const {jwtMiddleware} = require('../middleware/jwtMiddleware'); 
 
 const router = express.Router();
 

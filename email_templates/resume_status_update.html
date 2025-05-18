@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f7f9fc;
+      padding: 20px;
+    }
+    .container {
+      background: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      max-width: 600px;
+      margin: auto;
+    }
+    .header {
+      background-color: #2563eb;
+      color: white;
+      padding: 10px;
+      text-align: center;
+      border-radius: 10px 10px 0 0;
+    }
+    .content {
+      padding: 20px;
+    }
+    .footer {
+      font-size: 12px;
+      text-align: center;
+      color: #999;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h2>Resume Review Status Update</h2>
+    </div>
+    <div class="content">
+      <p>Hello {{name}},</p>
+      <p>The status of your resume review request has been updated to:</p>
+      <h3>{{status}}</h3>
+      <p>{{additionalMessage}}</p>
+    </div>
+    <div class="footer">
+      &copy; 2025 Referralwala
+    </div>
+  </div>
+</body>
+</html>

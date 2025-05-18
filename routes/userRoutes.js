@@ -3,7 +3,7 @@ const express = require('express');
 const router = express.Router();
 const { registerUser, loginUser, verifyOTP,verifyCompanyEmail, sendOTP,forgotPassword, getFollowers, getFollowing, resetPassword, resendOTP , getAllProfiles,getProfileCompletion, getProfileById, getProfileByEmail, updateProfileById, followUser, unfollowUser, delectUserActivity, getNotifications, getDelect, searching, getDeactivated} = require('../controllers/UserController');
 
-const jwtMiddleware = require('../middleware/jwtMiddleware'); 
+const {jwtMiddleware} = require('../middleware/jwtMiddleware'); 
 
 router.post('/register', registerUser);
 router.post('/login', loginUser);
