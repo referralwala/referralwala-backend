@@ -250,11 +250,22 @@ exports.getAllJobPosts = async (req, res) => {
 
     // Retrieve filtered and paginated job posts
     const jobPosts = await JobPost.find(filterConditions)
-      // .populate('user', 'firstName lastName email')
+      .populate('user', 'firstName lastName profilePhoto presentCompany') 
+      .lean() 
       .sort({ createdAt: -1 }) // Sort by newest first
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .exec();
 
+      // Trim presentCompany fields on each user
+    jobPosts.forEach(jobPost => {
+      if (jobPost.user && jobPost.user.presentCompany) {
+        jobPost.user.presentCompany = {
+          role: jobPost.user.presentCompany.role,
+          companyName: jobPost.user.presentCompany.companyName,
+        };
+      }
+    });
     // Get total active job count after applying filters (for frontend pagination)
     const totalJobs = await JobPost.countDocuments(filterConditions);
 
@@ -300,12 +311,22 @@ exports.getJobPostsByUser = async (req, res) => {
 exports.getJobPostById = async (req, res) => {
   try {
     const { id } = req.params;
-    const jobPost = await JobPost.findById(id).populate('user', 'firstName lastName');
+ const jobPost = await JobPost.findById(id)
+      .populate('user', 'firstName lastName profilePhoto presentCompany') 
+      .lean() 
+      .exec();
 
     if (!jobPost) {
       return res.status(404).json({ message: 'Job post not found' });
     }
-
+    
+    // // Manually filter presentCompany to only role and companyName
+    if (jobPost.user && jobPost.user.presentCompany) {
+      jobPost.user.presentCompany = {
+        role: jobPost.user.presentCompany.role,
+        companyName: jobPost.user.presentCompany.companyName,
+      };
+    }
     // Check and update the status if the endDate has passed
     if (jobPost.endDate < new Date() && jobPost.status === 'active') {
       jobPost.status = 'inactive';
