@@ -1,0 +1,37 @@
+const Notification = require('../models/Notification');
+const User = require('../models/User');
+
+// Send notification to all users or selected users
+exports.sendNotification = async (req, res) => {
+  try {
+    const { message, postId, userIds } = req.body;
+
+    if (!message) {
+      return res.status(400).json({ error: 'Message is required' });
+    }
+
+    let targetUsers;
+
+    if (userIds && Array.isArray(userIds) && userIds.length > 0) {
+      // Send to selected users
+      targetUsers = userIds;
+    } else {
+      // Send to all users
+      const allUsers = await User.find({}, '_id');
+      targetUsers = allUsers.map((user) => user._id);
+    }
+
+    const notifications = targetUsers.map((userId) => ({
+      user: userId,
+      message,
+      post: postId || undefined,
+    }));
+
+    await Notification.insertMany(notifications);
+
+    res.status(200).json({ message: 'Notifications sent successfully' });
+  } catch (err) {
+    console.error('Error sending notifications:', err.message);
+    res.status(500).json({ error: 'Server Error' });
+  }
+};

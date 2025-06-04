@@ -593,6 +593,27 @@ exports.getNotifications = async (req, res) => {
   }
 };
 
+exports.markNotificationAsRead = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const updatedNotification = await Notification.findByIdAndUpdate(
+      id,
+      { read: true },
+      { new: true }
+    );
+
+    if (!updatedNotification) {
+      return res.status(404).json({ message: 'Notification not found' });
+    }
+
+    res.status(200).json(updatedNotification);
+  } catch (err) {
+    console.error('Error marking notification as read:', err.message);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 // Search in Job Schema and User Schema
 exports.searching = async (req, res) => {
   const { query } = req.body; // Get the search input

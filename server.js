@@ -18,10 +18,16 @@ const rapidJobRoutes = require('./routes/rapidJobRoutes');
 const rapidInternshipRoutes = require('./routes/rapidInternshipRoutes');
 const autoConfirmReferrals = require('./cron/autoConfirm');
 const refreshRapidJobs = require('./cron/refreshRapidJobs');
-const refreshRapidInternships = require('./cron/refreshRapidInternships')
+const refreshRapidInternships = require('./cron/refreshRapidInternships');
+const runWeeklyJobNotification = require('./cron/weeklyJobNotification');
 const resumeReviewRoutes = require('./routes/resumeReviewRoutes');
 const chatMessagesRoutes = require('./routes/chatMessagesRoutes');
 const updateExpiredReviewRequests = require('./cron/autoExpireReviewRequest');
+const cleanupNotifications = require('./cron/cleanupNotifications');
+const jobMetadataRoutes = require('./routes/jobMetadataRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+
+
 
 // Admin Routes
 const userDataRoutes = require('./adminRoutes/userDataRoutes')
@@ -36,11 +42,11 @@ require('./config/passport');
 const app = express();
 const server = http.createServer(app);
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:5500', 'https://www.referralwala.com', 'https://referralwala.com','http://3.109.97.10' ]
+  origin: ['http://localhost:3000', 'http://localhost:3001', 'https://referralwala-adminpanel.netlify.app', 'http://127.0.0.1:5500', 'https://www.referralwala.com', 'https://referralwala.com','http://3.109.97.10' ]
 }));
 const io = socketIo(server, {
   cors: {
-    origin: ['http://localhost:3000',  'http://localhost:3001', 'http://127.0.0.1:5500', 'https://www.referralwala.com', 'https://referralwala.com','http://3.109.97.10']
+    origin: ['http://localhost:3000',  'http://localhost:3001', 'https://referralwala-adminpanel.netlify.app','http://127.0.0.1:5500', 'https://www.referralwala.com', 'https://referralwala.com','http://3.109.97.10']
   }
 });
 socketHandler(io);
@@ -57,15 +63,15 @@ app.use(express.json());
 app.use(passport.initialize());
 
   // Runs daily at midnight to auto-confirm applicants
-cron.schedule('0 0 * * *', async () => {
-  try {
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    await Notification.deleteMany({ createdAt: { $lt: sevenDaysAgo } });
-    console.log('Old notifications deleted successfully.');
-  } catch (err) {
-    console.error('Error deleting old notifications:', err.message);
-  }
-});
+// cron.schedule('0 0 * * *', async () => {
+//   try {
+//     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+//     await Notification.deleteMany({ createdAt: { $lt: sevenDaysAgo } });
+//     console.log('Old notifications deleted successfully.');
+//   } catch (err) {
+//     console.error('Error deleting old notifications:', err.message);
+//   }
+// });
 
 // Auto-confirm referrals after 3 days if only one side uploaded a document
 cron.schedule('0 0 * * *', autoConfirmReferrals);
@@ -76,6 +82,11 @@ cron.schedule('0 3 */5 * *', refreshRapidInternships);
 
 //Runs everyday at midnight
 cron.schedule('0 0 * * *', updateExpiredReviewRequests);
+// Runs daily at midnight to clean up old notifications
+cron.schedule('0 0 * * *', cleanupNotifications);
+
+// Weekly job alert every Monday at 9:00 AM
+cron.schedule('0 9 * * 1', runWeeklyJobNotification);
 
 app.get('/', (req, res) => {
     res.send('Server Running Successfully');
@@ -90,6 +101,9 @@ app.use('/rapidjob', rapidJobRoutes);
 app.use('/rapidinternship',rapidInternshipRoutes);
 app.use('/review', resumeReviewRoutes);
 app.use('/chat',chatMessagesRoutes);
+app.use('/job-metadata', jobMetadataRoutes);
+app.use('/notification',notificationRoutes);
+
 
 //Admin 
 app.use('/adminuser', userDataRoutes);
