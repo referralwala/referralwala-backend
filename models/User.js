@@ -54,7 +54,7 @@ const PresentCompanySchema = new mongoose.Schema({
     type: String,
   },
   companyLogoUrl: {
-    type: String,  
+    type: String,
   },
   companyEmail: {
     type: String,
@@ -83,7 +83,7 @@ const PreferencesSchema = new mongoose.Schema({
   preferredCompanyName: {
     type: String,
   },
-  preferredCompanyURL:{
+  preferredCompanyURL: {
     type: String,
   },
   preferredPosition: {
@@ -115,6 +115,23 @@ const LinksSchema = new mongoose.Schema({
     type: String,
   },
 });
+const ServiceSchema = new mongoose.Schema({
+  type: {
+    type: String,
+    enum: ['refer', 'resumeReview'],
+    required: true,
+    unique: true
+  },
+  price: {
+    type: Number,
+    required: true
+  },
+  enabled: {
+    type: Boolean,
+    default: false
+  }
+});
+
 
 // Combined User schema
 const userSchema = new mongoose.Schema({
@@ -176,6 +193,7 @@ const userSchema = new mongoose.Schema({
   },
   preferences: [PreferencesSchema],
   links: LinksSchema,
+  services: [ServiceSchema],
   resume: {
     type: String,
   },
@@ -187,14 +205,14 @@ const userSchema = new mongoose.Schema({
     type: Number,
   },
   userRole: { type: Number, default: 0 },// 0 = normal user, 1 = admin
- 
+
   followers: [{
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User', 
+    ref: 'User',
   }],
   following: [{
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User', 
+    ref: 'User',
   }],
   appliedJobs: [
     {
@@ -205,8 +223,8 @@ const userSchema = new mongoose.Schema({
   WishlistJobs: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'JobPost'
-  }],  
-  isActivate:{
+  }],
+  isActivate: {
     type: Boolean,
     default: true
   },
@@ -217,22 +235,26 @@ const userSchema = new mongoose.Schema({
   givereferral: {
     type: Number,  // user hire another 
     default: 0
-  },  
-  totalJobCount:{
+  },
+  totalJobCount: {
     type: Number,
     default: 0
   },
   resumeReviewRating: {
     type: Number,
-    default: 0, // average rating
+    default: 5, // average rating
   },
   resumeReviewCount: {
     type: Number,
     default: 0, // how many reviews received
   },
+  userHighlight: {
+    type: String, // e.g., "Top Performer", "Best Resume Reviewer"
+    default: null,  // can be null if no highlight
+  },
   preferredSectors: [
     {
-      type: String, 
+      type: String,
     },
   ],
 });

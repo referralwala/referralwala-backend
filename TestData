@@ -74,3 +74,79 @@ JOBS
 <div className="flex min-h-full flex-1 flex-col justify-center pt-0 md:pt-4 sm:px-6 lg:px-8">
 <div className="mt-4 sm:mx-auto sm:w-full sm:max-w-[480px]">
 <div className="bg-white px-6 py-12 shadow sm:rounded-lg sm:px-12 mt-4">
+
+
+
+
+   "resumeReviewCount": 0,
+        "_id": "67a4b7e8a634778a2c92ae5a",
+        "email": "fayakik684@sectorid.com",
+        "mobileNumber": 9606725478,
+
+
+
+        "resumeReviewRating": 0,
+        "resumeReviewCount": 0,
+        "_id": "67a64eb322b38d1d01dd170e",
+        "email": "cadowe1422@prorsd.com",
+        "mobileNumber": 1234567012,
+
+  "_id": "67a70f7ec4df4df26ecf8981",
+        "email": "tokav89439@intady.com",
+        "mobileNumber": 7992244398,
+
+
+{
+    "message": "Review request created successfully",
+    "request": {
+        "applicant": "67a4b7e8a634778a2c92ae5a",
+        "referrer": "67a64eb322b38d1d01dd170e",
+        "applicantQuestion": "Is my resume aligned with the job?",
+        "status": "pending",
+        "reviewComments": "",
+        "applicantFollowUpQuestion": "",
+        "referrerFollowUpAnswer": "",
+        "followUpCount": 0,
+        "ratingComment": "",
+        "_id": "680fe5403bb0cacc2a21d2f7",
+        "createdAt": "2025-04-28T20:29:52.163Z",
+        "__v": 0
+    }
+}
+
+{
+    "message": "Review request created successfully",
+    "request": {
+        "applicant": "67a4b7e8a634778a2c92ae5a",
+        "referrer": "67a743d4aa360df05b022c59",
+        "applicantQuestion": "How is my resume compatble  best with the job?",
+        "status": "pending",
+        "reviewComments": "",
+        "applicantFollowUpQuestion": "",
+        "referrerFollowUpAnswer": "",
+        "followUpCount": 0,
+        "ratingComment": "",
+        "type": "post-based",
+        "post": "67a748c1aa360df05b0233c1",
+        "chatClosedBy": {
+            "applicant": false,
+            "referrer": false
+        },
+        "_id": "68209f3f6ec1a3a4b40b9b0c",
+        "createdAt": "2025-05-11T12:59:43.526Z",
+        "__v": 0
+    }
+}
+
+
+
+
+Admin referralwalatech    ---   67c394a634d89356cc0eff16
+
+_id
+68209f3f6ec1a3a4b40b9b0c
+applicant  --- Keyens
+67a4c7afa634778a2c92b15a
+referrer  -- AFayai
+67a4b7e8a634778a2c92ae5a
+

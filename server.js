@@ -16,7 +16,10 @@ const jobReportRoutes = require('./routes/jobReport');
 const locationRoutes = require('./routes/locationRoutes');
 const rapidJobRoutes = require('./routes/rapidJobRoutes');
 const rapidInternshipRoutes = require('./routes/rapidInternshipRoutes');
-const autoConfirmReferrals = require('./cron/autoConfirm');
+const {
+  autoConfirmReferrals,
+  expireUnreviewedApplications
+} = require('./cron/autoConfirm');
 const refreshRapidJobs = require('./cron/refreshRapidJobs');
 const refreshRapidInternships = require('./cron/refreshRapidInternships');
 const runWeeklyJobNotification = require('./cron/weeklyJobNotification');
@@ -28,11 +31,14 @@ const jobMetadataRoutes = require('./routes/jobMetadataRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 
 
+const paymentRoutes = require('./routes/paymentRoutes');
+const walletRoutes = require('./routes/walletRoutes');
 
 // Admin Routes
 const userDataRoutes = require('./adminRoutes/userDataRoutes')
 const adminJobRoutes = require('./adminRoutes/adminJobRoutes');
 const adminAuthRoutes = require('./adminRoutes/adminAuthRoutes');
+const adminWalletRoutes = require('./adminRoutes/adminWalletRoutes');
 
 
 dotenv.config();
@@ -75,10 +81,16 @@ app.use(passport.initialize());
 
 // Auto-confirm referrals after 3 days if only one side uploaded a document
 cron.schedule('0 0 * * *', autoConfirmReferrals);
-// 🕑 Run every 5 days at 2 AM
-cron.schedule('0 2 */5 * *', refreshRapidJobs);
-// 🕓 Run every 5 days at 3 AM
-cron.schedule('0 3 */5 * *', refreshRapidInternships);
+
+cron.schedule('0 0 * * *', expireUnreviewedApplications); // Every day at midnight
+
+if (process.env.NODE_ENV !== 'development') {
+  // 🕑 Run every 5 days at 2 AM
+  cron.schedule('0 2 */5 * *', refreshRapidJobs);
+
+  // 🕓 Run every 5 days at 3 AM
+  cron.schedule('0 3 */5 * *', refreshRapidInternships);
+}
 
 //Runs everyday at midnight
 cron.schedule('0 0 * * *', updateExpiredReviewRequests);
@@ -104,11 +116,14 @@ app.use('/chat',chatMessagesRoutes);
 app.use('/job-metadata', jobMetadataRoutes);
 app.use('/notification',notificationRoutes);
 
+app.use('/payment', paymentRoutes);
+app.use('/wallet', walletRoutes);
 
 //Admin 
 app.use('/adminuser', userDataRoutes);
 app.use('/adminjob', adminJobRoutes);
 app.use('/adminauth', adminAuthRoutes);
+app.use('/adminwallet', adminWalletRoutes);
 
 
 const PORT = process.env.PORT || 5000;

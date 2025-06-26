@@ -1,0 +1,5 @@
+//constants.js
+module.exports = {
+  GENERAL_SPLIT: { reviewer: 90, platform: 10 },
+  PLATFORM_USER_ID: '67c394a634d89356cc0eff16',
+};

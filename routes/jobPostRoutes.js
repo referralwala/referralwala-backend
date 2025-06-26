@@ -14,7 +14,8 @@ const {
   getJobPostsByUser,
   withdrawApplication,
   updateEmployeeDocument,
-  addJobToWishlist, removeJobFromWishlist, getWishlistJobs
+  deleteAllJobsByUser,
+  addJobToWishlist, removeJobFromWishlist, getWishlistJobs, requestReferralJob 
 } = require('../controllers/JobPostController');
 
 const {jwtMiddleware} = require('../middleware/jwtMiddleware'); 
@@ -63,6 +64,9 @@ router.get('/unique/:jobUniqueId',jwtMiddleware, getJobsByJobUniqueId);
 // Delete a job post
 router.delete('/delete/:id', jwtMiddleware, deleteJobPost);
 
+//Delet All jobs posetd by user
+router.delete('/jobposts/user/:userId',  deleteAllJobsByUser);
+
 // Route to add a job to the wishlist
 router.post('/wishlist/add', jwtMiddleware, addJobToWishlist);
 
@@ -71,5 +75,7 @@ router.delete('/wishlist/remove',jwtMiddleware, removeJobFromWishlist);
 
 // Route to get all wishlist jobs
 router.get('/wishlist/:userId',jwtMiddleware, getWishlistJobs);
+
+router.post('/referral/request', jwtMiddleware, requestReferralJob);
 
 module.exports = router;

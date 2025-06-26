@@ -5,7 +5,13 @@ const User = require('../models/User');
 const mongoose = require('mongoose');
 const sendEmailTemplate = require('../utils/emailUtils');
 const Notification = require('../models/Notification');
+const { blockCoins, spendBlockedCoins, refundBlockedCoins, rewardCoins } = require('./walletController');
 const path = require('path');
+
+const REVIEW_COST = 100;
+const POST_BASED_SPLIT = { reviewer: 80, platform: 20 };
+const GENERAL_SPLIT = { reviewer: 90, platform: 10 };
+
 // 1. Create/get new resume review request
 
 exports.createReviewRequest = async (req, res) => {
@@ -13,6 +19,9 @@ exports.createReviewRequest = async (req, res) => {
     postId } = req.body;
 
   try {
+      // Block coins first
+    await blockCoins(applicant, REVIEW_COST, 'Resume review request initiated');
+
     const newRequest = new ResumeReviewRequest({
       applicant,
       referrer,
@@ -49,6 +58,9 @@ exports.createReviewRequest = async (req, res) => {
     res.status(201).json({ message: 'Review request created successfully', request: newRequest });
   } catch (err) {
     console.error(err);
+     if (err.message === 'Insufficient coin balance') {
+    return res.status(400).json({ message: err.message });  
+  }
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -105,7 +117,8 @@ exports.updateRequestStatus = async (req, res) => {
   try {
     const request = await ResumeReviewRequest.findById(id)
     .populate('post')
-    .populate('applicant', 'email firstName');
+    .populate('applicant', 'email firstName')
+    .populate('referrer','email firstName' );
     if (!request) {
       return res.status(404).json({ message: 'Resume review request not found' });
     }
@@ -128,7 +141,20 @@ exports.updateRequestStatus = async (req, res) => {
     if (request.chatClosedBy.applicant && request.chatClosedBy.referrer) {
       request.chatOpen = false;
     }
+     // Handle coin logic
+    if (status === 'rejected' || status === 'expired') {
+      await refundBlockedCoins(request.applicant._id, REVIEW_COST, 'Resume request rejected/expired', request._id);
+    }
 
+     if (status === 'completed') {
+      const split = request.type === 'post-based' ? POST_BASED_SPLIT : GENERAL_SPLIT;
+      const reviewerShare = (REVIEW_COST * split.reviewer) / 100;
+      const platformShare = (REVIEW_COST * split.platform) / 100;
+
+      await spendBlockedCoins(request.applicant._id, REVIEW_COST, 'Resume review completed', request._id);
+      await rewardCoins(request.referrer._id, reviewerShare, 'Resume review reward', request._id);
+      await rewardCoins('67c394a634d89356cc0eff16', platformShare, 'Platform commission', request._id); // Replace with platform user
+    }
     await request.save();
 
     // Notify the applicant about the updated status

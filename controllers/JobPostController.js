@@ -6,7 +6,10 @@ const UniqueJob = require('../models/UniqueJob');
 const mongoose = require('mongoose');
 const nodemailer = require('nodemailer');
 const fs = require('fs');
+const { blockCoins, spendBlockedCoins, refundBlockedCoins, rewardCoins } = require('./walletController');
 const path = require('path');
+const { GENERAL_SPLIT, PLATFORM_USER_ID } = require('../helpers/constants');
+
 
 const getEmailTemplate = (templateName) => {
   const templatePath = path.join(__dirname, '..', 'email_templates', templateName);
@@ -544,43 +547,35 @@ exports.deleteJobPost = async (req, res) => {
       return res.status(404).json({ message: 'Job post not found' });
     }
 
-    const jobRole = jobPost.jobRole;
-    const companyName = jobPost.companyName;
+    const { jobRole, companyName, applicants } = jobPost;
 
-    // Get all applicants for the job post
-    const applicants = jobPost.applicants;
-
-    // Notify each applicant about the job deletion and remove the job from their appliedJobs field
+    // Notify each applicant and clean their appliedJobs
     const notificationsPromises = applicants.map(async (userId) => {
-      // Create a notification for the user
       const notification = new Notification({
         user: userId,
         message: `The job "${jobRole}" at "${companyName}" you applied for has been deleted. You can explore other job postings on our platform.`,
         post: id,
       });
-
-      // Save the notification
       await notification.save();
 
-      // Remove the job from the user's appliedJobs field
       await User.updateOne(
         { _id: userId },
-        { $pull: { appliedJobs: id } } // Pull the job ID from the appliedJobs array
+        { $pull: { appliedJobs: id } }
       );
     });
 
-    // Remove applicant status records associated with the job post
+    // Remove applicant statuses
     const applicantStatusDeletePromise = ApplicantStatus.deleteMany({ jobPostId: id });
 
-    // Clear the job post's applicants array
-    jobPost.applicants = [];
-    await jobPost.save();
-
-    // Delete the job post from the database
+    // Delete the job post directly (no need to clear applicants before)
     const jobPostDeletePromise = JobPost.deleteOne({ _id: id });
 
-    // Wait for all operations to complete
-    await Promise.all([...notificationsPromises, applicantStatusDeletePromise, jobPostDeletePromise]);
+    // Run all promises in parallel
+    await Promise.all([
+      ...notificationsPromises,
+      applicantStatusDeletePromise,
+      jobPostDeletePromise
+    ]);
 
     res.status(200).json({ message: 'Job post deleted successfully, and notifications sent to applicants.' });
   } catch (err) {
@@ -588,6 +583,56 @@ exports.deleteJobPost = async (req, res) => {
     res.status(500).send('Server Error');
   }
 };
+
+
+exports.deleteAllJobsByUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Get all job posts by the user
+    const jobPosts = await JobPost.find({ user: userId });
+
+    if (jobPosts.length === 0) {
+      return res.status(404).json({ message: 'No job posts found for this user.' });
+    }
+
+    // Loop through each job post
+    const allPromises = jobPosts.map(async (job) => {
+      const { _id: jobId, jobRole, companyName, applicants } = job;
+
+      // Notify applicants and remove job from their appliedJobs
+      const notifications = applicants.map(async (applicantId) => {
+        await new Notification({
+          user: applicantId,
+          message: `The job "${jobRole}" at "${companyName}" you applied for has been deleted.`,
+          post: jobId
+        }).save();
+
+        await User.updateOne(
+          { _id: applicantId },
+          { $pull: { appliedJobs: jobId } }
+        );
+      });
+
+      // Delete applicant statuses
+      const deleteApplicantStatus = ApplicantStatus.deleteMany({ jobPostId: jobId });
+
+      // Delete the job post
+      const deleteJobPost = JobPost.deleteOne({ _id: jobId });
+
+      return Promise.all([...notifications, deleteApplicantStatus, deleteJobPost]);
+    });
+
+    // Wait for all deletions
+    await Promise.all(allPromises.flat());
+
+    res.status(200).json({ message: 'All job posts by the user have been deleted.' });
+  } catch (err) {
+    console.error('Error deleting user job posts:', err.message);
+    res.status(500).send('Server Error');
+  }
+};
+
 
 
 
@@ -602,7 +647,7 @@ exports.getUserApplicationStatuses = async (req, res) => {
 
     // Find all applicant statuses for the given user
     const applicantStatuses = await ApplicantStatus.find({ userId })
-      .populate('jobPostId', 'jobRole companyName jobUniqueId location companyLogoUrl experienceRequired ctc workMode status') // Populate job details
+      .populate('jobPostId', 'jobRole companyName jobUniqueId location companyLogoUrl experienceRequired ctc workMode status jobLink') // Populate job details
       .exec();
 
     if (applicantStatuses.length === 0) {
@@ -677,99 +722,111 @@ exports.getJobsByJobUniqueId = async (req, res) => {
 // @desc    Update the status of an applicant for a specific job post
 exports.updateApplicantStatus = async (req, res) => {
   try {
-    const { jobId, applicantId } = req.params; // Extract job ID and applicant ID from the parameters
-    const { status, uploadedFileUrl } = req.body; // New status for the applicant
+    const { jobId, applicantId } = req.params;
+    const { status, uploadedFileUrl } = req.body;
 
-    // Validate status
-    const validStatuses = ['applied', 'selected', 'rejected', 'on hold'];
+    const validStatuses = ['applied', 'selected', 'rejected', 'on hold', 'inprogress', 'completed', 'expired'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ message: 'Invalid status' });
     }
 
-    // Validate ObjectId format for jobId and applicantId
     if (!mongoose.Types.ObjectId.isValid(jobId)) {
-      return res.status(404).json({ message: 'Job post not found' });
+      return res.status(404).json({ message: 'Invalid Job ID format' });
     }
 
     if (!mongoose.Types.ObjectId.isValid(applicantId)) {
-      return res.status(404).json({ message: 'Applicant not found' });
+      return res.status(404).json({ message: 'Invalid Applicant ID format' });
     }
 
-    // Check if the job post exists
     const jobPost = await JobPost.findById(jobId);
     if (!jobPost) {
       return res.status(404).json({ message: 'Job post not found' });
     }
 
-    // Check if the applicant has been selected for the same jobUniqueId
-    const existingSelection = await ApplicantStatus.findOne({
-      userId: applicantId,
-      status: 'selected',
-      jobPostId: { $ne: jobId } // Exclude the current jobId
-    }).populate('jobPostId');
-
-    if (existingSelection && existingSelection.jobPostId.jobUniqueId === jobPost.jobUniqueId) {
-      return res.status(400).json({ message: 'User is already selected for another job with the same unique ID.' });
-    }
-
-    // Find the applicant status for the specified job and applicant
     const applicantStatus = await ApplicantStatus.findOne({ userId: applicantId, jobPostId: jobId });
     if (!applicantStatus) {
-      return res.status(404).json({ message: 'Applicant not found' });
+      return res.status(404).json({ message: 'Applicant not found for this job' });
     }
 
-    // Update the status
- // Update the status and employer document
-applicantStatus.status = status;
-if (uploadedFileUrl) {
-  applicantStatus.employer_doc = uploadedFileUrl;
-}
-await applicantStatus.save();
+    // Update the status and uploaded document
+    applicantStatus.status = status;
+    if (uploadedFileUrl) {
+      applicantStatus.employer_doc = uploadedFileUrl;
+    }
+    await applicantStatus.save();
 
-// Check if both docs exist, and autoConfirm is false
-if (applicantStatus.employer_doc && applicantStatus.employee_doc && !applicantStatus.autoConfirmed) {
-  await User.findByIdAndUpdate(applicantId, { $inc: { getreferral: 1 } });
-  await User.findByIdAndUpdate(jobPost.user, { $inc: { givereferral: 1 } });
+    // Refund if rejected or expired
+    if (['rejected', 'expired'].includes(status)) {
+      try {
+        await refundBlockedCoins(applicantId, applicantStatus.reviewCost, 'Resume request rejected/expired', jobPost._id);
+      } catch (err) {
+        return res.status(500).json({ message: 'Refund failed', error: err.message });
+      }
+    }
 
-  applicantStatus.autoConfirmed = true;
-  await applicantStatus.save();
-}
+    // Complete if applicable
+    const shouldMarkCompleted =
+      status === 'completed' || (applicantStatus.employer_doc && applicantStatus.employee_doc && !applicantStatus.autoConfirmed);
 
+    if (shouldMarkCompleted && !applicantStatus.autoConfirmed) {
+      try {
+        await spendBlockedCoins(
+          applicantStatus.userId,
+          applicantStatus.reviewCost,
+          'Referral completed (manual or auto)',
+          jobPost._id
+        );
 
-    // Optionally, create a notification about the status change
+        const reviewerShare = (applicantStatus.reviewCost * GENERAL_SPLIT.reviewer) / 100;
+        const platformShare = (applicantStatus.reviewCost * GENERAL_SPLIT.platform) / 100;
+
+        await rewardCoins(jobPost.user, reviewerShare, 'Referral reward', jobPost._id);
+        await rewardCoins(PLATFORM_USER_ID, platformShare, 'Platform commission', jobPost._id);
+
+        await User.findByIdAndUpdate(applicantStatus.userId, { $inc: { getreferral: 1 } });
+        await User.findByIdAndUpdate(jobPost.user, { $inc: { givereferral: 1 } });
+
+        applicantStatus.status = 'completed';
+        applicantStatus.autoConfirmed = true;
+        await applicantStatus.save();
+      } catch (err) {
+        return res.status(500).json({ message: 'Error completing referral', error: err.message });
+      }
+    }
+
+    // Notification
     const user = await User.findById(applicantId);
     if (user) {
-      const notification = new Notification({
-        user: applicantId,
-        message: `Your application status for ${jobPost.jobRole} at ${jobPost.companyName} has been updated to ${status}.`, post: jobPost._id,
-      });
+      try {
+        await Notification.create({
+          user: applicantId,
+          post: jobPost._id,
+          message: `Your application status for ${jobPost.jobRole} at ${jobPost.companyName} has been updated to ${status}.`,
+        });
 
-      await notification.save();
-    }
-    // Send email notification to the applicant
-    try {
-      await sendEmailTemplate(
-        user.email,  // Recipient email
-        'Your Application Status Has Changed',  // Email subject
-        'status_update_template.html',  // Replace with your status update template filename
-        {
-          applicantName: user.firstName,
-          jobRole: jobPost.jobRole,
-          companyName: jobPost.companyName,
-          status: status,
-        }  // Replace placeholders with actual values
-      );
-    } catch (err) {
-      console.error(`Failed to send status update email:`, err);
-      return res.status(500).json({ error: 'Failed to send status update email.' });
+        await sendEmailTemplate(
+          user.email,
+          'Your Application Status Has Changed',
+          'status_update_template.html',
+          {
+            applicantName: user.firstName,
+            jobRole: jobPost.jobRole,
+            companyName: jobPost.companyName,
+            status,
+          }
+        );
+      } catch (err) {
+        return res.status(500).json({ message: 'Failed to send email or notification', error: err.message });
+      }
     }
 
-    res.status(200).json({ message: 'Applicant status updated successfully', applicantStatus });
+    return res.status(200).json({ message: 'Applicant status updated successfully', applicantStatus });
+
   } catch (err) {
-    console.error('Error updating applicant status:', err.message);
-    res.status(500).send('Server Error');
+    return res.status(500).json({ message: 'Unexpected server error', error: err.message });
   }
 };
+
 
 //Uploading Document 
 exports.updateEmployeeDocument = async (req, res) => {
@@ -805,7 +862,25 @@ exports.updateEmployeeDocument = async (req, res) => {
       await User.findByIdAndUpdate(job.user, { $inc: { givereferral: 1 } });
     
       applicantStatus.autoConfirmed = true;
+      applicantStatus.status = 'completed';
       await applicantStatus.save();
+  
+
+
+       // 💰 Spend blocked coins from applicant
+      await spendBlockedCoins(
+        applicantStatus.userId,
+        applicantStatus.reviewCost,
+        'Referral completed (manual or auto)',
+        job._id
+      );
+
+      // 💸 Reward coins to reviewer and platform
+      const reviewerShare = (applicantStatus.reviewCost * GENERAL_SPLIT.reviewer) / 100;
+      const platformShare = (applicantStatus.reviewCost * GENERAL_SPLIT.platform) / 100;
+
+      await rewardCoins(job.user, reviewerShare, 'Referral reward', job._id);
+      await rewardCoins(PLATFORM_USER_ID, platformShare, 'Platform commission', job._id);
     }
     res.status(200).json({ message: "Document updated successfully", documentUrl });
   } catch (error) {
@@ -962,3 +1037,141 @@ exports.getWishlistJobs = async (req, res) => {
     res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 };
+
+
+
+exports.requestReferralJob = async (req, res) => {
+  try {
+    const {
+      jobRole,
+      jobUniqueId,
+      companyName,
+      companyLogoUrl,
+      jobLink,
+      reviewCost,
+      endDate,
+      referredUserId,
+    } = req.body;
+
+    const requesterId = req.user.userId;
+    const postedBySelf = requesterId.toString() === referredUserId.toString();
+
+    // 🔁 1. Check if job already exists for referred user
+    const existingJob = await JobPost.findOne({
+      user: referredUserId,
+      jobUniqueId,
+      companyName,
+    });
+
+    if (existingJob) {
+      existingJob.lastReferredAt = new Date();
+
+      // Only block coins & apply if not posting for self
+      if (!postedBySelf) {
+        if (!existingJob.applicants.includes(requesterId)) {
+          existingJob.applicants.push(requesterId);
+        }
+
+        // 💸 Attempt to block coins first
+        try {
+          await blockCoins(requesterId, reviewCost, 'Resume review request initiated', existingJob._id);
+        } catch (err) {
+          return res.status(400).json({ message: err.message || 'Insufficient coins for referral' });
+        }
+
+        // 📝 Save applicant status
+        await ApplicantStatus.findOneAndUpdate(
+          { userId: requesterId, jobPostId: existingJob._id },
+          { status: 'applied', reviewCost },
+          { upsert: true, new: true }
+        );
+
+        // 🔔 Notify referrer
+        const requestingUser = await User.findById(requesterId);
+        await Notification.create({
+          user: referredUserId,
+          message: `${requestingUser.firstName || 'Someone'} has requested a referral for ${jobRole} at ${companyName}`,
+          post: existingJob._id,
+        });
+      }
+
+      await existingJob.save();
+
+      return res.status(200).json({
+        message: 'Job already existed. Applicant added or timestamp updated.',
+        jobPost: existingJob,
+      });
+    }
+
+    // 🔁 2. If new job, block coins first (if it's a referral)
+    if (!postedBySelf) {
+      try {
+        // 🛡 Coins will be blocked using the job post ID after creation
+        // So we delay this and call it after job is created
+      } catch (err) {
+        return res.status(400).json({ message: err.message || 'Insufficient coins for referral' });
+      }
+    }
+
+    // 🔁 3. Create new job post
+    const newJob = await JobPost.create({
+      user: referredUserId,
+      jobRole,
+      jobUniqueId,
+      companyName,
+      companyLogoUrl,
+      jobLink,
+      postedBySelf,
+      endDate,
+      applicants: postedBySelf ? [] : [requesterId],
+      lastReferredAt: new Date(),
+    });
+
+    // 💸 Now block coins using this job post's ID
+    if (!postedBySelf) {
+      try {
+        await blockCoins(requesterId, reviewCost, 'Resume review request initiated', newJob._id);
+      } catch (err) {
+        // Rollback the created job post if coin block fails
+        await JobPost.findByIdAndDelete(newJob._id);
+        return res.status(400).json({ message: err.message || 'Failed to block coins for referral' });
+      }
+
+      await ApplicantStatus.create({
+        userId: requesterId,
+        jobPostId: newJob._id,
+        status: 'applied',
+        reviewCost,
+      });
+
+      const requestingUser = await User.findById(requesterId);
+      await Notification.create({
+        user: referredUserId,
+        message: `${requestingUser.firstName} has requested a referral for ${jobRole} at ${companyName}`,
+        post: newJob._id,
+      });
+    }
+
+    // 🔁 4. Add to UniqueJob if missing
+    const existingUnique = await UniqueJob.findOne({ jobUniqueId, companyName });
+    if (!existingUnique) {
+      await UniqueJob.create({
+        jobUniqueId,
+        latestJobPost: newJob._id,
+        jobRole,
+        companyName,
+        companyLogoUrl,
+        jobLink,
+        endDate,
+      });
+    }
+
+    res.status(201).json({ message: 'Job posted successfully', jobPost: newJob });
+
+  } catch (err) {
+    console.error('Error in referral job post flow:', err);
+    res.status(500).json({ message: err.message || 'Internal server error' });
+  }
+};
+
+

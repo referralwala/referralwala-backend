@@ -454,12 +454,31 @@ exports.getProfileByEmail = async (req, res) => {
 // Get all profiles
 exports.getAllProfiles = async (req, res) => {
   try {
-    const users = await User.find();
+    const users = await User.find()
+      .select('firstName lastName presentCompany services resumeReviewRating resumeReviewCount getreferral givereferral followers following profilePhoto');
+
     res.status(200).json(users);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
+
+exports.getAllReferrers = async (req, res) => {
+  try {
+    const users = await User.find({
+      services: {
+        $elemMatch: { type: 'refer', enabled: true }
+      }
+    }).select(
+      'firstName lastName presentCompany services givereferral profilePhoto'
+    );
+
+    res.status(200).json(users);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 
 // Update profile by ID
 exports.updateProfileById = async (req, res) => {
@@ -736,5 +755,47 @@ exports.getDelect = async (req, res) => {
   } catch (error) {
     console.error('Error deleting user:', error);
     res.status(500).json({ message: 'Server error while deleting user' });
+  }
+};
+
+
+
+// PATCH /user/:userId/service
+exports.updateService = async (req, res) => {
+  const { userId } = req.params;
+  const services = req.body.services;
+
+  if (!Array.isArray(services) || services.length === 0) {
+    return res.status(400).json({ message: 'Services array is required' });
+  }
+
+  try {
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    for (const service of services) {
+      const { type, price, enabled } = service;
+
+      if (!type || typeof price !== 'number') continue;
+
+      const index = user.services.findIndex(s => s.type === type);
+
+      if (index !== -1) {
+        // Update existing
+        user.services[index].price = price;
+        if (typeof enabled === 'boolean') {
+          user.services[index].enabled = enabled;
+        }
+      } else {
+        // Add new
+        user.services.push({ type, price, enabled: !!enabled });
+      }
+    }
+
+    await user.save();
+    res.status(200).json({ message: 'Services updated successfully', services: user.services });
+  } catch (error) {
+    console.error('Error updating services:', error);
+    res.status(500).json({ message: 'Internal server error' });
   }
 };

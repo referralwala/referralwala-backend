@@ -61,7 +61,7 @@ const JobPostSchema = new Schema({
       ref: 'User',
       status: {
         type: String,
-        enum: ['applied', 'selected', 'rejected', 'on hold'],
+        enum: ['applied', 'selected', 'rejected', 'on hold', 'inprogress', 'completed','expired'],
         default: 'applied',
       },
     },
@@ -80,6 +80,15 @@ const JobPostSchema = new Schema({
     type: Date,
     default: Date.now,
   },
+  postedBySelf: {
+  type: Boolean,
+  required: true
+},
+// Custom timestamp to track latest referral
+  lastReferredAt: {
+    type: Date,
+    default: Date.now
+  },
   reportUser: [
     {
       userId: { 
@@ -88,6 +97,8 @@ const JobPostSchema = new Schema({
       },
     }
   ],
+}, {
+  timestamps: true 
 });
 
 module.exports = mongoose.model('JobPost', JobPostSchema);
