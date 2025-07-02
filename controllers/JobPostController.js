@@ -173,7 +173,7 @@ if (!existingUniqueJob) {
 
 // @route   GET /job/all
 // @desc    Get all job referral posts
-exports.getAllJobPosts = async (req, res) => {
+exports.getAllJobPostswithFilters = async (req, res) => {
   try {
     const userId = req.headers['userid'];
 
@@ -283,6 +283,32 @@ exports.getAllJobPosts = async (req, res) => {
     res.status(500).send('Server Error');
   }
 };
+
+
+exports.getAllJobPosts = async (req, res) => {
+  try {
+    const currentDate = new Date();
+
+    // Mark expired jobs as inactive
+    await JobPost.updateMany(
+      { endDate: { $lt: currentDate }, status: 'active' },
+      { $set: { status: 'inactive' } }
+    );
+
+    // Fetch only active jobs with selected fields
+    const jobPosts = await JobPost.find({ status: 'active' })
+      .select('_id user jobRole jobUniqueId companyName companyLogoUrl jobLink location')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    res.status(200).json({ jobPosts });
+  } catch (err) {
+    console.error('Error fetching job posts:', err.message);
+    res.status(500).send('Server Error');
+  }
+};
+
+
 
 exports.getJobPostsByUser = async (req, res) => {
   try {

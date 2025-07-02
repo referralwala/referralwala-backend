@@ -6,12 +6,16 @@ const razorpay = require('../config/razorpay');
 
 exports.createOrder = async (req, res) => {
   try {
-    const { amountInINR } = req.body;
+    const { amountInINR, email, mobileNumber } = req.body;
 
     const options = {
       amount: amountInINR * 100, // in paisa
       currency: 'INR',
-      receipt: `rcpt_${Date.now()}`
+      receipt: `rcpt_${Date.now()}`,
+      notes: {
+        email,
+        mobileNumber
+      }
     };
 
     const order = await razorpay.orders.create(options);

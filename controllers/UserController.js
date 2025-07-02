@@ -286,7 +286,8 @@ exports.resetPassword = async (req, res) => {
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
     user.password = hashedPassword;
-    user.otp = null; // Clear the OTP after password reset
+    user.isOTPVerified = true;
+    user.otp = null; 
     await user.save();
 
     res.json({ message: 'Password reset successful. You can now login with the new password.' });
@@ -470,7 +471,7 @@ exports.getAllReferrers = async (req, res) => {
         $elemMatch: { type: 'refer', enabled: true }
       }
     }).select(
-      'firstName lastName presentCompany services givereferral profilePhoto'
+      'firstName lastName presentCompany services givereferral profilePhoto userHighlight resumeReviewRating'
     );
 
     res.status(200).json(users);

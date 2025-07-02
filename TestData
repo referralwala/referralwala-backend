@@ -150,3 +150,166 @@ applicant  --- Keyens
 referrer  -- AFayai
 67a4b7e8a634778a2c92ae5a
 
+
+
+
+db.users.updateOne(
+  {
+    email: "pisaxid829@sectorid.com",
+    "services.type": { $ne: "refer" }
+  },
+  {
+    $push: {
+      services: {
+        type: "refer",
+        price: 100,
+        enabled: true
+      }
+    }
+  }
+)
+
+
+db.users.updateOne(
+  {
+    email: "sushantkumarsuman007@gmail.com", 
+    "services.type": { $ne: "refer" }
+  },
+  {
+    $push: {
+      services: {
+        _id: ObjectId(), 
+        type: "refer",
+        price: 50, 
+        enabled: true
+      }
+    }
+  }
+)
+
+
+[
+  'aakarshamit26@gmail.com',
+  'abhisheksarkar71@gmail.com',
+  'aniket.omar85@gmail.com',
+  'ashwinrb26@gmail.com',
+  'ashwinrb74@gmail.com',
+  'bhuvan1175@gmail.com',
+  'clientsgpt@gmail.com',
+  'dushyantjoshi1409@gmail.com',
+  'emaljo573@gmail.com',
+  'farhanahmed31943@gmail.com',
+  'gs28092001@gmail.com',
+  'harshadhikari023@gmail.com',
+  'haswath.kamidi@gmail.com',
+  'karankumarsingh7870@gmail.com',
+  'keshavvats5520@gmail.com',
+  'keshavvats9470@gmail.com',
+  'kfayazuddin09219@gmail.com',
+  'kulkarnivaishu240@gmail.com',
+  'lovlesh.harjani22@gmail.com',
+  'maasif004@gmail.com',
+  'manidharmanidhar2@gmail.com',
+  'mansiapillewan.clustor@gmail.com',
+  'merylbernice20@gmail.com',
+  'msoni23894@gmail.com',
+  'munendrashiv97@gmail.com',
+  'musthaffa2311@gmail.com',
+  'naganjan963@gmail.com',
+  'naveenraminayudu@gmail.com',
+  'nexusgamer7767@gmail.com',
+  'nikhil1717kumar@gmail.com',
+  'p05034113@gmail.com',
+  'pavan.ch454@gmail.com',
+  'pbhoyar622@gmail.com',
+  'prajwalgbhoyar.clustor@gmail.com',
+  'pranavlokhande601@gmail.com',
+  'praneetmishra27@gmail.com',
+  'prateekdev235@gmail.com',
+  'pratheekgangatkar77@gmail.com',
+  'rahilshah3709@gmail.com',
+  'rahul04052000@gmail.com',
+  'rahul722003@gmail.com',
+  'rajasriveta123@gmail.com',
+  'rajswapnil31@gmail.com',
+  'rakhechaab@gmail.com',
+  'raunakknight@gmail.com',
+  'ravikumawat1080@gmail.com',
+  'rebellullah@gmail.com',
+  'referralwala.tech@gmail.com',
+  'rishichinnur@gmail.com',
+  'samreenhunagund98@gmail.com',
+  'sandeepmishraxp@gmail.com',
+  'sarafgautam2002@gmail.com',
+  'scholarsstay@gmail.com',
+  'servolance@gmail.com',
+  'sg5876149@gmail.com',
+  'shashanksinghss872@gmail.com',
+  'shrivastav8087@gmail.com',
+  'siddharth.gargdpr@gmail.com',
+  'singh.harsh9097@gmail.com',
+  'sudhanshuarya963@gmail.com',
+  'suhasumesh11@gmail.com',
+  'surajku2022@gmail.com',
+  'sushantkumarsuman007@gmail.com',
+  'ujjwalagrawal29102001@gmail.com'
+]
+
+
+
+
+
+const emails = [
+  "keshavvats9470@gmail.com",
+  "munendrashiv97@gmail.com",
+  "musthaffa2311@gmail.com",
+  "nikhil1717kumar@gmail.com",
+  "pbhoyar622@gmail.com",
+  "prateekdev235@gmail.com",
+  "rahilshah3709@gmail.com",
+  "rahul04052000@gmail.com",
+  "rahul722003@gmail.com",
+  "rajswapnil31@gmail.com",
+  "raunakknight@gmail.com",
+  "shashanksinghss872@gmail.com",
+  "shrivastav8087@gmail.com",
+  "singh.harsh9097@gmail.com",
+  "ujjwalagrawal29102001@gmail.com"
+];
+
+
+
+const emails = [
+  "keshavvats9470@gmail.com",
+  "munendrashiv97@gmail.com",
+  "musthaffa2311@gmail.com",
+  "nikhil1717kumar@gmail.com",
+  "pbhoyar622@gmail.com",
+  "prateekdev235@gmail.com",
+  "rahilshah3709@gmail.com",
+  "rahul04052000@gmail.com",
+  "rahul722003@gmail.com",
+  "rajswapnil31@gmail.com",
+  "raunakknight@gmail.com",
+  "shashanksinghss872@gmail.com",
+  "shrivastav8087@gmail.com"
+];
+
+emails.forEach(email => {
+  db.users.updateOne(
+    {
+      email: email,
+      "services.type": { $ne: "refer" }
+    },
+    {
+      $push: {
+        services: {
+          _id: new ObjectId(), 
+          type: "refer",
+          price: 50,
+          enabled: true
+        }
+      }
+    }
+  );
+});

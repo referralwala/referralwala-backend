@@ -15,6 +15,7 @@ const {
   withdrawApplication,
   updateEmployeeDocument,
   deleteAllJobsByUser,
+  getAllJobPostswithFilters,
   addJobToWishlist, removeJobFromWishlist, getWishlistJobs, requestReferralJob 
 } = require('../controllers/JobPostController');
 
@@ -27,6 +28,8 @@ router.post('/create',jwtMiddleware, createJobPost);
 
 // Get all job posts
 router.get('/all',getAllJobPosts);
+
+router.get('/allwithfilters', getAllJobPostswithFilters);
 
 // Get jobs by user
 router.get('/user/:userId',jwtMiddleware, getJobPostsByUser);

@@ -1,5 +1,5 @@
 //constants.js
 module.exports = {
-  GENERAL_SPLIT: { reviewer: 90, platform: 10 },
-  PLATFORM_USER_ID: '67c394a634d89356cc0eff16',
+  GENERAL_SPLIT: { reviewer: 80, platform: 20 },
+  PLATFORM_USER_ID: '67d85b6659dbaf7314e93623',
 };

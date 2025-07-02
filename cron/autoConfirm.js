@@ -5,15 +5,16 @@ const Notification = require('../models/Notification');
 const User = require('../models/User');
 const { blockCoins, spendBlockedCoins, refundBlockedCoins, rewardCoins } = require('../controllers/walletController');
 const { GENERAL_SPLIT, PLATFORM_USER_ID } = require('../helpers/constants');
+const sendEmailTemplate = require('../utils/emailUtils');
 
 const autoConfirmReferrals = async () => {
   try {
-    const threeDaysAgo = moment().subtract(3, 'days').toDate();
+    const twoDaysAgo = moment().subtract(2, 'days').toDate();
 
     const pending = await ApplicantStatus.find({
       status: 'selected',
       autoConfirmed: false,
-      updatedAt: { $lte: threeDaysAgo },
+       updatedAt: { $lte: twoDaysAgo },
       $or: [
         { employer_doc: { $exists: true, $ne: null }, employee_doc: { $exists: false } },
         { employee_doc: { $exists: true, $ne: null }, employer_doc: { $exists: false } }
